@@ -1,0 +1,680 @@
+---
+title: "STA475 Autofluorence_FPCA"
+author: "Juyuan Li"
+date: "2023-oct"
+output:
+  html_document:
+    fig_caption: yes
+    number_sections: yes
+    self_contained: no
+    theme: flatly
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(fda)
+library(fdapace)
+library(tidyverse)
+library(dplyr)
+library(readxl)
+library(lubridate)
+library(gridExtra)
+library(grid)
+library(ggplot2)
+library(ks)
+```
+
+
+# 161030-noglucose(Palo)
+
+```{r}
+setwd("/Users/lijuyuan/Desktop/AutoF/processed_data")
+data <- read_excel("all.xlsx")
+
+clean <- function(data) {
+  data <- data[order(data$V1), ] %>%
+  group_by(V1) %>%
+  mutate(Identifier = row_number()) %>%
+  ungroup() 
+}
+
+data <- clean(data)
+data <- data[order(data$Identifier), ]
+```
+
+```{r}
+spectra <- MakeFPCAInputs(IDs = data$Identifier, tVec=data$V1, yVec=data$V2, na.rm=TRUE)
+
+fpcaObj <- FPCA(spectra$Ly,spectra$Lt,
+                     list(plot=TRUE,
+                          methodMuCovEst='smooth',
+                          userBwCov=2))
+```
+
+```{r}
+fpcaObj$cumFVE
+```
+
+```{r}
+CreatePathPlot(fpcaObj)
+
+```
+
+```{r}
+data%>% 
+  ggplot(aes(x=V1,y=V2,color=as.factor(Identifier))) +
+  geom_line()
+```
+
+```{r}
+CreateOutliersPlot(fpcaObj,optns=list(K=3,variant='KDE'))
+```
+
+```{r}
+Func <- CreateFuncBoxPlot(fpcaObj,xlab="Wavelength",ylab="Intensity",
+                  optns=list(K=3,variant="bagplot"))
+
+```
+
+```{r}
+par(mfrow=c(1,2))
+  CreatePathPlot(fpcaObj, subset = c(10, 35, 70), K = 2, main = 'K = 3', showObs = FALSE) ; grid()
+  CreatePathPlot(fpcaObj, subset = c(10, 35, 70), K = 2, main = 'K = 3', showObs = FALSE, derOptns = list(p = 1, bw = 1.01 , kernelType = 'epan') ) ; grid()
+```
+
+```{r}
+plot_data <- data.frame(FPCA1 = fpcaObj$xiEst[,1], FPCA2 = fpcaObj$xiEst[,2], Time = unique(data$time))
+numeric_to_timestamp <- function(numeric_values) {
+  reference_time <- as.POSIXct("1970-01-01 00:00:00", tz = "UTC")
+  timestamps <- reference_time + as.difftime(numeric_values, units = "secs")
+  return(timestamps)
+}
+
+ggplot(plot_data, aes(x = FPCA1, y = FPCA2, color = Time)) +
+  geom_point(size = 4) +
+  scale_color_gradient(low = "blue", high = "red") +
+  labs(
+    x = "FPC 1",
+    y = "FPC 2"
+  ) +
+  theme_minimal()
+```
+
+```{r}
+ggplot(plot_data, aes(Time)) +
+  geom_line(aes(y = FPCA1, color = "FPC 1"), linetype = "solid") +
+  geom_line(aes(y = FPCA2, color = "FPC 2"), linetype = "dashed") +
+  labs(x = "Time", y = "FPC Estimates", color = "Functional PC") +
+  scale_color_manual(values = c("FPC 1" = "blue", "FPC 2" = "red")) +
+  scale_linetype_manual(values = c("FPC 1" = "solid", "FPC 2" = "dashed")) +
+  theme(legend.position = "right")
+```
+
+
+# 140612-ethanol-cyanide(Maltas)
+
+```{r}
+data <- read_excel("140612-ethanol-cyanide(Maltas)-Figure1.xlsx")
+data <- data[order(data$Identifier), ]
+```
+
+```{r}
+spectra <- MakeFPCAInputs(IDs = data$Identifier, tVec=data$V1, yVec=data$V2, na.rm=TRUE)
+
+fpcaObj <- FPCA(spectra$Ly,spectra$Lt,
+                     list(plot=TRUE,
+                          methodMuCovEst='smooth',
+                          userBwCov=2))
+```
+
+```{r}
+fpcaObj$cumFVE
+```
+
+```{r}
+CreatePathPlot(fpcaObj)
+
+```
+
+```{r}
+data%>% 
+  ggplot(aes(x=V1,y=V2,color=as.factor(Identifier))) +
+  geom_line()
+```
+
+
+# 151211-glucose-glucose-deoxyglucose(Stefan)
+
+```{r}
+data <- read_excel("151211-glucose-glucose-deoxyglucose(Stefan)-Figure1.xlsx")
+data <- data[order(data$Identifier), ]
+```
+
+```{r}
+spectra <- MakeFPCAInputs(IDs = data$Identifier, tVec=data$V1, yVec=data$V2, na.rm=TRUE)
+
+fpcaObj <- FPCA(spectra$Ly,spectra$Lt,
+                     list(plot=TRUE,
+                          methodMuCovEst='smooth',
+                          userBwCov=2))
+```
+
+
+```{r}
+fpcaObj$cumFVE
+```
+
+```{r}
+CreatePathPlot(fpcaObj)
+
+```
+
+```{r}
+data%>% 
+  ggplot(aes(x=V1,y=V2,color=as.factor(Identifier))) +
+  geom_line()+
+  facet_wrap(~ substance, ncol = 4)
+```
+
+
+```{r}
+plot_data <- data.frame(FPCA1 = fpcaObj$xiEst[,1], FPCA2 = fpcaObj$xiEst[,2], Time = unique(data$time))
+numeric_to_timestamp <- function(numeric_values) {
+  reference_time <- as.POSIXct("1970-01-01 00:00:00", tz = "UTC")
+  timestamps <- reference_time + as.difftime(numeric_values, units = "secs")
+  return(timestamps)
+}
+
+ggplot(plot_data, aes(x = FPCA1, y = FPCA2, color = Time)) +
+  geom_point(size = 4) +
+  scale_color_gradient(low = "blue", high = "red") +
+  labs(
+    x = "FPC 1",
+    y = "FPC 2"
+  ) +
+  theme_minimal()
+```
+
+```{r}
+ggplot(plot_data, aes(Time)) +
+  geom_line(aes(y = FPCA1, color = "FPC 1"), linetype = "solid") +
+  geom_line(aes(y = FPCA2, color = "FPC 2"), linetype = "dashed") +
+  labs(x = "Time", y = "FPC Estimates", color = "Functional PC") +
+  scale_color_manual(values = c("FPC 1" = "blue", "FPC 2" = "red")) +
+  scale_linetype_manual(values = c("FPC 1" = "solid", "FPC 2" = "dashed")) +
+  theme(legend.position = "right")
+```
+
+
+# 170709-Lglucose-glucose-deoxyglucose(AlAayedi)
+
+```{r}
+data <- read_excel("170709-Lglucose-glucose-deoxyglucose(AlAayedi)-Figure1.xlsx")
+data <- data[order(data$Identifier), ]
+```
+
+```{r}
+spectra <- MakeFPCAInputs(IDs = data$Identifier, tVec=data$V1, yVec=data$V2, na.rm=TRUE)
+
+fpcaObj <- FPCA(spectra$Ly,spectra$Lt,
+                     list(plot=TRUE,
+                          methodMuCovEst='smooth',
+                          userBwCov=2))
+```
+
+
+```{r}
+fpcaObj$cumFVE
+```
+
+```{r}
+CreatePathPlot(fpcaObj)
+
+```
+
+```{r}
+data%>% 
+  ggplot(aes(x=V1,y=V2,color=as.factor(Identifier))) +
+  geom_line()+
+  facet_wrap(~ substance, ncol = 4)
+```
+
+
+```{r}
+plot_data <- data.frame(FPCA1 = fpcaObj$xiEst[,1], FPCA2 = fpcaObj$xiEst[,2], Time = unique(data$time), Substance = data$substance)
+
+ggplot(plot_data, aes(x = FPCA1, y = FPCA2, color = Time, shape = Substance)) +
+  geom_point(size = 4, stroke = 2) +
+  scale_color_gradient(low = "blue", high = "red") +
+  labs(
+    x = "FPC 1",
+    y = "FPC 2"
+  )+
+  scale_shape_binned() +
+  theme_minimal()
+```
+
+```{r}
+ggplot(plot_data, aes(Time)) +
+  geom_line(aes(y = FPCA1, color = "FPC 1"), linetype = "solid") +
+  geom_line(aes(y = FPCA2, color = "FPC 2"), linetype = "dashed") +
+  labs(x = "Time", y = "FPC Estimates", color = "Functional PC") +
+  scale_color_manual(values = c("FPC 1" = "blue", "FPC 2" = "red")) +
+  scale_linetype_manual(values = c("FPC 1" = "solid", "FPC 2" = "dashed")) +
+  theme(legend.position = "right")
+```
+
+# 151211-2propanol(OConnor)-Figure2
+
+```{r}
+data <- read_excel("151211-2propanol(OConnor)-Figure2.xlsx")
+data <- data[order(data$Identifier), ]
+```
+
+```{r}
+spectra <- MakeFPCAInputs(IDs = data$Identifier, tVec=data$V1, yVec=data$V2, na.rm=TRUE)
+
+fpcaObj <- FPCA(spectra$Ly,spectra$Lt,
+                     list(plot=TRUE,
+                          methodMuCovEst='smooth',
+                          userBwCov=2))
+```
+
+
+```{r}
+fpcaObj$cumFVE
+```
+
+```{r}
+CreatePathPlot(fpcaObj)
+
+```
+
+```{r}
+data%>% 
+  ggplot(aes(x=V1,y=V2,color=as.factor(Identifier))) +
+  geom_line()+
+  facet_wrap(~ substance, ncol = 4)
+```
+
+
+```{r}
+plot_data <- data.frame(FPCA1 = fpcaObj$xiEst[,1], FPCA2 = fpcaObj$xiEst[,2], Time = unique(data$time), Substance = factor(data$substance))
+
+ggplot(plot_data, aes(x = FPCA1, y = FPCA2, color = Time, shape = Substance)) +
+  geom_point(size = 4, stroke = 2) +
+  scale_color_gradient(low = "blue", high = "red") +
+  labs(
+    x = "FPC 1",
+    y = "FPC 2"
+  )+
+  theme_minimal()
+```
+
+```{r}
+ggplot(plot_data, aes(Time)) +
+  geom_line(aes(y = FPCA1, color = "FPC 1"), linetype = "solid") +
+  geom_line(aes(y = FPCA2, color = "FPC 2"), linetype = "dashed") +
+  geom_point(aes(y = FPCA1, color = Substance)) + 
+  labs(x = "Time", y = "FPC Estimates", color = "Functional PC") +
+  scale_color_manual(values = c("FPC 1" = "blue", "FPC 2" = "red")) +
+  scale_linetype_manual(values = c("FPC 1" = "solid", "FPC 2" = "dashed")) +
+  theme(legend.position = "right")
+```
+
+
+# 161030-3mM-glucose(Palo)
+
+```{r}
+data <- read_excel("161030-3mM-glucose(Palo)-Figure2.xlsx")
+data <- data[order(data$Identifier), ]
+```
+
+```{r}
+spectra <- MakeFPCAInputs(IDs = data$Identifier, tVec=data$V1, yVec=data$V2, na.rm=TRUE)
+
+fpcaObj <- FPCA(spectra$Ly,spectra$Lt,
+                     list(plot=TRUE,
+                          methodMuCovEst='smooth',
+                          userBwCov=2))
+```
+
+
+```{r}
+fpcaObj$cumFVE
+```
+
+```{r}
+CreatePathPlot(fpcaObj)
+
+```
+
+```{r}
+data%>% 
+  ggplot(aes(x=V1,y=V2,color=as.factor(Identifier))) +
+  geom_line()+
+  facet_wrap(~ substance, ncol = 4)
+```
+
+
+```{r}
+plot_data <- data.frame(FPCA1 = fpcaObj$xiEst[,1], FPCA2 = fpcaObj$xiEst[,2], Time = unique(data$time), Substance = factor(data$substance))
+
+ggplot(plot_data, aes(x = FPCA1, y = FPCA2, color = Time, shape = Substance)) +
+  geom_point(size = 4, stroke = 2) +
+  scale_color_gradient(low = "blue", high = "red") +
+  labs(
+    x = "FPC 1",
+    y = "FPC 2"
+  )+
+  theme_minimal()
+```
+
+```{r}
+ggplot(plot_data, aes(Time)) +
+  geom_line(aes(y = FPCA1, color = "FPC 1"), linetype = "solid") +
+  geom_line(aes(y = FPCA2, color = "FPC 2"), linetype = "dashed") +
+  geom_point(aes(y = FPCA1, color = Substance)) + 
+  labs(x = "Time", y = "FPC Estimates", color = "Functional PC") +
+  scale_color_manual(values = c("FPC 1" = "blue", "FPC 2" = "red")) +
+  scale_linetype_manual(values = c("FPC 1" = "solid", "FPC 2" = "dashed")) +
+  theme(legend.position = "right")
+```
+
+
+# 161030-10mM-glucose(Palo)
+
+```{r}
+data <- read_excel("161030-10mM-glucose(Palo)-Figure2.xlsx")
+data <- data[order(data$Identifier), ]
+```
+
+```{r}
+spectra <- MakeFPCAInputs(IDs = data$Identifier, tVec=data$V1, yVec=data$V2, na.rm=TRUE)
+
+fpcaObj <- FPCA(spectra$Ly,spectra$Lt,
+                     list(plot=TRUE,
+                          methodMuCovEst='smooth',
+                          userBwCov=2))
+```
+
+
+```{r}
+fpcaObj$cumFVE
+```
+
+```{r}
+CreatePathPlot(fpcaObj)
+
+```
+
+```{r}
+data%>% 
+  ggplot(aes(x=V1,y=V2,color=as.factor(Identifier))) +
+  geom_line()+
+  facet_wrap(~ substance, ncol = 4)
+```
+
+
+```{r}
+plot_data <- data.frame(FPCA1 = fpcaObj$xiEst[,1], FPCA2 = fpcaObj$xiEst[,2], Time = unique(data$time), Substance = factor(data$substance))
+
+ggplot(plot_data, aes(x = FPCA1, y = FPCA2, color = Time, shape = Substance)) +
+  geom_point(size = 4, stroke = 2) +
+  scale_color_gradient(low = "blue", high = "red") +
+  labs(
+    x = "FPC 1",
+    y = "FPC 2"
+  )+
+  theme_minimal()
+```
+
+```{r}
+ggplot(plot_data, aes(Time)) +
+  geom_line(aes(y = FPCA1, color = "FPC 1"), linetype = "solid") +
+  geom_line(aes(y = FPCA2, color = "FPC 2"), linetype = "dashed") +
+  geom_point(aes(y = FPCA1, color = Substance)) + 
+  labs(x = "Time", y = "FPC Estimates", color = "Functional PC") +
+  scale_color_manual(values = c("FPC 1" = "blue", "FPC 2" = "red")) +
+  scale_linetype_manual(values = c("FPC 1" = "solid", "FPC 2" = "dashed")) +
+  theme(legend.position = "right")
+```
+
+
+# 161030-No-glucose(Palo)
+
+```{r}
+data <- read_excel("161030-No-glucose(Palo)-Figure2.xlsx")
+data <- data[order(data$Identifier), ]
+```
+
+```{r}
+spectra <- MakeFPCAInputs(IDs = data$Identifier, tVec=data$V1, yVec=data$V2, na.rm=TRUE)
+
+fpcaObj <- FPCA(spectra$Ly,spectra$Lt,
+                     list(plot=TRUE,
+                          methodMuCovEst='smooth',
+                          userBwCov=2))
+```
+
+
+```{r}
+fpcaObj$cumFVE
+```
+
+```{r}
+CreatePathPlot(fpcaObj)
+
+```
+
+```{r}
+data%>% 
+  ggplot(aes(x=V1,y=V2,color=as.factor(Identifier))) +
+  geom_line()+
+  facet_wrap(~ substance, ncol = 4)
+```
+
+
+```{r}
+plot_data <- data.frame(FPCA1 = fpcaObj$xiEst[,1], FPCA2 = fpcaObj$xiEst[,2], Time = unique(data$time), Substance = factor(data$substance))
+
+ggplot(plot_data, aes(x = FPCA1, y = FPCA2, color = Time, shape = Substance)) +
+  geom_point(size = 4, stroke = 2) +
+  scale_color_gradient(low = "blue", high = "red") +
+  labs(
+    x = "FPC 1",
+    y = "FPC 2"
+  )+
+  theme_minimal()
+```
+
+```{r}
+ggplot(plot_data, aes(Time)) +
+  geom_line(aes(y = FPCA1, color = "FPC 1"), linetype = "solid") +
+  geom_line(aes(y = FPCA2, color = "FPC 2"), linetype = "dashed") +
+  geom_point(aes(y = FPCA1, color = Substance)) + 
+  labs(x = "Time", y = "FPC Estimates", color = "Functional PC") +
+  scale_color_manual(values = c("FPC 1" = "blue", "FPC 2" = "red")) +
+  scale_linetype_manual(values = c("FPC 1" = "solid", "FPC 2" = "dashed")) +
+  theme(legend.position = "right")
+```
+
+
+# 151202-ethanol(OConnor)
+
+```{r}
+data <- read_excel("151202-ethanol(OConnor)-Figure3.xlsx")
+data <- data[order(data$Identifier), ]
+```
+
+```{r}
+spectra <- MakeFPCAInputs(IDs = data$Identifier, tVec=data$V1, yVec=data$V2, na.rm=TRUE)
+
+fpcaObj <- FPCA(spectra$Ly,spectra$Lt,
+                     list(plot=TRUE,
+                          methodMuCovEst='smooth',
+                          userBwCov=2))
+```
+
+
+```{r}
+fpcaObj$cumFVE
+```
+
+```{r}
+CreatePathPlot(fpcaObj)
+
+```
+
+```{r}
+data%>% 
+  ggplot(aes(x=V1,y=V2,color=as.factor(Identifier))) +
+  geom_line()+
+  facet_wrap(~ substance, ncol = 4)
+```
+
+
+```{r}
+plot_data <- data.frame(FPCA1 = fpcaObj$xiEst[,1], FPCA2 = fpcaObj$xiEst[,2], Time = unique(data$time), Substance = factor(data$substance))
+
+ggplot(plot_data, aes(x = FPCA1, y = FPCA2, color = Time, shape = Substance)) +
+  geom_point(size = 4, stroke = 2) +
+  scale_color_gradient(low = "blue", high = "red") +
+  labs(
+    x = "FPC 1",
+    y = "FPC 2"
+  )+
+  theme_minimal()
+```
+
+```{r}
+ggplot(plot_data, aes(Time)) +
+  geom_line(aes(y = FPCA1, color = "FPC 1"), linetype = "solid") +
+  geom_line(aes(y = FPCA2, color = "FPC 2"), linetype = "dashed") +
+  geom_point(aes(y = FPCA1, color = Substance)) + 
+  labs(x = "Time", y = "FPC Estimates", color = "Functional PC") +
+  scale_color_manual(values = c("FPC 1" = "blue", "FPC 2" = "red")) +
+  scale_linetype_manual(values = c("FPC 1" = "solid", "FPC 2" = "dashed")) +
+  theme(legend.position = "right")
+```
+
+
+# 151204-1butanol(OConnor)
+
+```{r}
+data <- read_excel("151204-1butanol(OConnor)-Figure3.xlsx")
+data <- data[order(data$Identifier), ]
+```
+
+```{r}
+spectra <- MakeFPCAInputs(IDs = data$Identifier, tVec=data$V1, yVec=data$V2, na.rm=TRUE)
+
+fpcaObj <- FPCA(spectra$Ly,spectra$Lt,
+                     list(plot=TRUE,
+                          methodMuCovEst='smooth',
+                          userBwCov=2))
+```
+
+
+```{r}
+fpcaObj$cumFVE
+```
+
+```{r}
+CreatePathPlot(fpcaObj)
+
+```
+
+```{r}
+data%>% 
+  ggplot(aes(x=V1,y=V2,color=as.factor(Identifier))) +
+  geom_line()+
+  facet_wrap(~ substance, ncol = 4)
+```
+
+
+```{r}
+plot_data <- data.frame(FPCA1 = fpcaObj$xiEst[,1], FPCA2 = fpcaObj$xiEst[,2], Time = unique(data$time), Substance = factor(data$substance))
+
+ggplot(plot_data, aes(x = FPCA1, y = FPCA2, color = Time, shape = Substance)) +
+  geom_point(size = 4, stroke = 2) +
+  scale_color_gradient(low = "blue", high = "red") +
+  labs(
+    x = "FPC 1",
+    y = "FPC 2"
+  )+
+  theme_minimal()
+```
+
+```{r}
+ggplot(plot_data, aes(Time)) +
+  geom_line(aes(y = FPCA1, color = "FPC 1"), linetype = "solid") +
+  geom_line(aes(y = FPCA2, color = "FPC 2"), linetype = "dashed") +
+  geom_point(aes(y = FPCA1, color = Substance)) + 
+  labs(x = "Time", y = "FPC Estimates", color = "Functional PC") +
+  scale_color_manual(values = c("FPC 1" = "blue", "FPC 2" = "red")) +
+  scale_linetype_manual(values = c("FPC 1" = "solid", "FPC 2" = "dashed")) +
+  theme(legend.position = "right")
+```
+
+
+# 151210-methanol(OConnor)
+
+```{r}
+data <- read_excel("151210-methanol(OConnor)-Figure3.xlsx")
+data <- data[order(data$Identifier), ]
+```
+
+```{r}
+spectra <- MakeFPCAInputs(IDs = data$Identifier, tVec=data$V1, yVec=data$V2, na.rm=TRUE)
+
+fpcaObj <- FPCA(spectra$Ly,spectra$Lt,
+                     list(plot=TRUE,
+                          methodMuCovEst='smooth',
+                          userBwCov=2))
+```
+
+
+```{r}
+fpcaObj$cumFVE
+```
+
+```{r}
+CreatePathPlot(fpcaObj)
+
+```
+
+```{r}
+data%>% 
+  ggplot(aes(x=V1,y=V2,color=as.factor(Identifier))) +
+  geom_line()+
+  facet_wrap(~ substance, ncol = 4)
+```
+
+
+```{r}
+plot_data <- data.frame(FPCA1 = fpcaObj$xiEst[,1], FPCA2 = fpcaObj$xiEst[,2], Time = unique(data$time), Substance = factor(data$substance))
+
+ggplot(plot_data, aes(x = FPCA1, y = FPCA2, color = Time, shape = Substance)) +
+  geom_point(size = 4, stroke = 2) +
+  scale_color_gradient(low = "blue", high = "red") +
+  labs(
+    x = "FPC 1",
+    y = "FPC 2"
+  )+
+  theme_minimal()
+```
+
+```{r}
+ggplot(plot_data, aes(Time)) +
+  geom_line(aes(y = FPCA1, color = "FPC 1"), linetype = "solid") +
+  geom_line(aes(y = FPCA2, color = "FPC 2"), linetype = "dashed") +
+  geom_point(aes(y = FPCA1, color = Substance)) + 
+  labs(x = "Time", y = "FPC Estimates", color = "Functional PC") +
+  scale_color_manual(values = c("FPC 1" = "blue", "FPC 2" = "red")) +
+  scale_linetype_manual(values = c("FPC 1" = "solid", "FPC 2" = "dashed")) +
+  theme(legend.position = "right")
+```
